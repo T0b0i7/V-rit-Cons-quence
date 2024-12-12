@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vérité ou Conséquences Pro</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+        }
+        body {
+            background-color: #f0f3f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #game-container {
+            width: 95%;
+            max-width: 450px;
+            background-color: white;
+            border-radius: 20px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+            padding: 25px;
+            text-align: center;
+        }
+        .player-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .player-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            object-fit: cover;
+        }
+        .avatar.active {
+            border-color: #3498db;
+        }
+        .button {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        #action-btn { background-color: #2ecc71; }
+        #verite-btn { background-color: #3498db; }
+        #passe-btn { background-color: #e74c3c; }
+        #termine-btn { background-color: #9b59b6; }
+        #timer {
+            font-size: 28px;
+            margin: 20px 0;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        #challenge-area {
+            margin: 20px 0;
+        }
+        #challenge-type {
+            font-weight: bold;
+            font-size: 22px;
+            margin-bottom: 15px;
+            color: #34495e;
+        }
+        #challenge-text {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        #game-end-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        #avatar-selection-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .avatar-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            max-width: 400px;
+        }
+        .avatar-select {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .avatar-select:hover {
+            transform: scale(1.1);
+        }
+        .alert {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-size: 16px;
+            color: white;
+            background-color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <!-- Modale de sélection d'avatars -->
+    <div id="avatar-selection-modal">
+        <div class="modal-content">
+            <h2>Choisissez vos avatars</h2>
+            <div class="avatar-grid" id="avatar-grid"></div>
+        </div>
+    </div>
+
+    <!-- Modale de fin de jeu -->
+    <div id="game-end-modal">
+        <div class="modal-content">
+            <h2 id="winner-text">Joueur 1 a gagné !</h2>
+            <button onclick="resetGame()" class="button" style="background-color: #2ecc71;">Nouvelle partie</button>
+        </div>
+    </div>
+
+    <!-- Conteneur principal du jeu -->
+    <div id="game-container">
+        <div class="player-info">
+            <div class="player-profile">
+                <img id="player1-avatar" class="avatar active" src="">
+                <span>Joueur 1: <span id="player1-score">0</span> pts</span>
+            </div>
+            <div class="player-profile">
+                <img id="player2-avatar" class="avatar" src="">
+                <span>Joueur 2: <span id="player2-score">0</span> pts</span>
+            </div>
+        </div>
+
+        <div id="timer">02:00</div>
+
+        <div id="selection-area">
+            <button id="action-btn" class="button">Action</button>
+            <button id="verite-btn" class="button">Vérité</button>
+        </div>
+        
+        <div id="challenge-area" style="display:none;">
+            <div id="challenge-type"></div>
+            <div id="challenge-text"></div>
+            <div id="challenge-buttons">
+                <button id="passe-btn" class="button">Je passe</button>
+                <button id="termine-btn" class="button">Terminé</button>
+            </div>
+        </div>
+
+        <div id="alert-message" class="alert" style="display:none;"></div>
+    </div>
+
+    <audio id="start-sound" src="Orange.mp3"></audio>
+    <audio id="fail-sound" src="Orange.mp3"></audio>
+    <audio id="success-sound" src="Orange.mp3"></audio>
+
+    <script>
+        // Liste des avatars disponibles
+        const avatarList = [
+            'https://api.dicebear.com/7.x/adventurer/svg?seed=Felix',
+            'https://api.dicebear.com/7.x/adventurer/svg?seed=Luna',
+            'https://api.dicebear.com/7.x/adventurer/svg?seed=Max',
+            'https://api.dicebear.com/7.x/adventurer/svg?seed=Emma',
+            'https://api.dicebear.com/7.x/adventurer/svg?seed=Oscar',
+            'https://api.dicebear.com/7.x/adventurer/svg?seed=Sophia',
+            'https://api.dicebear.com/7.x/adventurer/svg?seed=Charlie',
+            'https://api.dicebear.com/7.x/adventurer/svg?seed=Olivia',
+            'https://api.dicebear.com/7.x/adventurer/svg?seed=Jack'
+        ];
+
+        // Base de données enrichie des défis
+        const challenges = {
+            action: [
+                "Faites une imitation de votre acteur préféré",
+                "Dansez sur une musique imaginaire pendant 30 secondes",
+                "Appelez un contact et chantez-lui une chanson",
+                "Faites un tour de la pièce en marchant comme un canard",
+                "Faites un selfie ridicule et montrez-le à tout le monde",
+                "Faites un stand-up comedy pendant 1 minute",
+                "Chantez une chanson en entier sans rire",
+                "Donnez un compliment sincère à chaque joueur",
+                "Imitez un animal pendant 30 secondes",
+                "Faites une chorégraphie sur un hit des années 2000"
+            ],
+            verite: [
+                "Quel est votre plus grand secret ?",
+                "Quelle est la chose la plus embarrassante qui vous soit jamais arrivée ?",
+                "Quel est votre plus grand regret ?",
+                "Racontez votre premier baiser",
+                "Quelle est la chose la plus folle que vous ayez faite ?",
+                "Révélez un mensonge que vous avez déjà dit",
+                "Quel est votre plus grand défaut ?",
+                "Avez-vous déjà été jaloux d'un ami ?",
+                "Quel est votre plus grand rêve ?",
+                "Racontez une situation où vous avez eu honte de vous-même"
+            ]
+        };
+
+        const avatarModal = document.getElementById('avatar-selection-modal');
+        const avatarGrid = document.getElementById('avatar-grid');
+        const player1Avatar = document.getElementById('player1-avatar');
+        const player2Avatar = document.getElementById('player2-avatar');
+        const player1Score = document.getElementById('player1-score');
+        const player2Score = document.getElementById('player2-score');
+        const timerElement = document.getElementById('timer');
+        const challengeArea = document.getElementById('challenge-area');
+        const challengeType = document.getElementById('challenge-type');
+        const challengeText = document.getElementById('challenge-text');
+        const alertMessage = document.getElementById('alert-message');
+
+        const startSound = document.getElementById('start-sound');
+        const failSound = document.getElementById('fail-sound');
+        const successSound = document.getElementById('success-sound');
+
+        let player1SelectedAvatar = null;
+        let player2SelectedAvatar = null;
+        let currentPlayer = 1;
+        let currentScore = [0, 0];
+        let timer;
+        let timeLeft = 120; // 2 minutes
+
+        // Générer la grille d'avatars
+        function generateAvatarSelection() {
+            avatarList.forEach((avatar, index) => {
+                const img = document.createElement('img');
+                img.src = avatar;
+                img.classList.add('avatar-select');
+                img.dataset.index = index;
+                img.addEventListener('click', selectAvatar);
+                avatarGrid.appendChild(img);
+            });
+        }
+
+        // Sélectionner un avatar
+        function selectAvatar(event) {
+            const selectedAvatar = event.target.src;
+            const avatarIndex = event.target.dataset.index;
+
+            if (!player1SelectedAvatar) {
+                player1Avatar.src = selectedAvatar;
+                player1SelectedAvatar = avatarIndex;
+                event.target.style.opacity = '0.5';
+            } else if (!player2SelectedAvatar) {
+                player2Avatar.src = selectedAvatar;
+                player2SelectedAvatar = avatarIndex;
+                event.target.style.opacity = '0.5';
+                avatarModal.style.display = 'none';
+                startGame();
+            }
+        }
+
+        // Démarrer le jeu
+        function startGame() {
+            document.getElementById('selection-area').style.display = 'block';
+            document.getElementById('action-btn').addEventListener('click', () => startChallenge('action'));
+            document.getElementById('verite-btn').addEventListener('click', () => startChallenge('verite'));
+        }
+
+        // Démarrer un défi
+        function startChallenge(type) {
+            startSound.play();
+            document.getElementById('selection-area').style.display = 'none';
+            challengeArea.style.display = 'block';
+            challengeType.textContent = type === 'action' ? 'Action' : 'Vérité';
+            challengeText.textContent = getRandomChallenge(type);
+            startTimer();
+        }
+
+        // Obtenir un défi aléatoire
+        function getRandomChallenge(type) {
+            const list = challenges[type];
+            return list[Math.floor(Math.random() * list.length)];
+        }
+
+        // Démarrer le minuteur
+        function startTimer() {
+            timeLeft = 120;
+            timerElement.textContent = formatTime(timeLeft);
+            timer = setInterval(() => {
+                timeLeft--;
+                timerElement.textContent = formatTime(timeLeft);
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    failSound.play();
+                    showAlert("Temps écoulé ! Vous ne marquez pas de points.");
+                    switchPlayer();
+                }
+            }, 1000);
+        }
+
+        // Formater le temps en minutes:secondes
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const secs = (seconds % 60).toString().padStart(2, '0');
+            return `${mins}:${secs}`;
+        }
+
+        // Afficher un message d'alerte
+        function showAlert(message) {
+            alertMessage.textContent = message;
+            alertMessage.style.display = 'block';
+            setTimeout(() => {
+                alertMessage.style.display = 'none';
+            }, 3000);
+        }
+
+        // Passer au joueur suivant
+        function switchPlayer() {
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            player1Avatar.classList.toggle('active');
+            player2Avatar.classList.toggle('active');
+            document.getElementById('selection-area').style.display = 'block';
+            challengeArea.style.display = 'none';
+        }
+
+        // Terminer le défi
+        document.getElementById('termine-btn').addEventListener('click', () => {
+            clearInterval(timer);
+            successSound.play();
+            currentScore[currentPlayer - 1]++;
+            updateScore();
+            switchPlayer();
+        });
+
+        // Passer le défi
+        document.getElementById('passe-btn').addEventListener('click', () => {
+            clearInterval(timer);
+            failSound.play();
+            showAlert("Vous avez passé le défi. Aucun point marqué.");
+            switchPlayer();
+        });
+
+        // Mettre à jour le score
+        function updateScore() {
+            player1Score.textContent = currentScore[0];
+            player2Score.textContent = currentScore[1];
+            if (currentScore[0] >= 5 || currentScore[1] >= 5) {
+                endGame();
+            }
+        }
+
+        // Fin de la partie
+        function endGame() {
+            document.getElementById('selection-area').style.display = 'none';
+            document.getElementById('game-end-modal').style.display = 'flex';
+            document.getElementById('winner-text').textContent = currentScore[0] > currentScore[1] ? "Joueur 1 a gagné !" : "Joueur 2 a gagné !";
+        }
+
+        // Réinitialiser le jeu
+        function resetGame() {
+            currentScore = [0, 0];
+            currentPlayer = 1;
+            player1Avatar.classList.add('active');
+            player2Avatar.classList.remove('active');
+            updateScore();
+            document.getElementById('game-end-modal').style.display = 'none';
+            document.getElementById('selection-area').style.display = 'block';
+            challengeArea.style.display = 'none';
+        }
+
+        // Initialisation
+        generateAvatarSelection();
+    </script>
+</body>
+</html>
